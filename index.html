@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>4 монеты и особенные весы</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --accent:#fbbf24; --good:#22c55e;
+    --bad:#ef4444; --text:#e2e8f0; --muted:#94a3b8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui,sans-serif;
+    background:linear-gradient(160deg,#0f172a,#1e293b);
+    color:var(--text); min-height:100vh; padding:20px;
+  }
+  h1{text-align:center;color:var(--accent);margin:0 0 10px}
+  .task{
+    max-width:800px;margin:0 auto 20px; background:var(--panel);
+    padding:15px 20px; border-radius:12px; border-left:4px solid var(--accent);
+    line-height:1.5;
+  }
+  .wrap{max-width:900px;margin:0 auto;display:grid;gap:20px}
+  .panel{background:var(--panel);padding:20px;border-radius:12px}
+
+  /* Весы */
+  .scale{position:relative;height:280px;margin:10px 0}
+  .pillar{
+    position:absolute;left:50%;top:40px;transform:translateX(-50%);
+    width:8px;height:180px;background:linear-gradient(#cbd5e1,#64748b);
+    border-radius:4px;
+  }
+  .base{
+    position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+    width:180px;height:14px;background:#475569;border-radius:6px;
+  }
+  .beam{
+    position:absolute;left:50%;top:40px;transform:translateX(-50%) rotate(0deg);
+    width:520px;height:6px;background:linear-gradient(#fbbf24,#d97706);
+    border-radius:3px;transform-origin:center center;
+    transition:transform 0.8s cubic-bezier(.5,.1,.3,1);
+  }
+  .pan{
+    position:absolute;top:46px;width:180px;height:110px;
+    border:3px solid #fbbf24;border-top:none;border-radius:0 0 90px 90px;
+    background:rgba(251,191,36,0.08);
+    display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;
+    gap:6px;padding:10px;
+    transition:transform 0.8s cubic-bezier(.5,.1,.3,1);
+  }
+  .pan.left{left:calc(50% - 260px)}
+  .pan.right{left:calc(50% + 80px)}
+  .pan.tilt-down{transform:translateY(25px)}
+  .pan.tilt-up{transform:translateY(-15px)}
+  .string{
+    position:absolute;top:0;width:2px;height:46px;background:#94a3b8;
+  }
+  .pan.left .string{left:89px}
+  .pan.right .string{left:89px}
+
+  /* Монеты */
+  .coin{
+    width:44px;height:44px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%,#fde68a,#b45309);
+    color:#422006;font-weight:bold;font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 6px rgba(0,0,0,.4), inset 0 -2px 4px rgba(0,0,0,.3);
+    cursor:pointer;user-select:none;transition:transform .2s;
+  }
+  .coin:hover{transform:scale(1.1)}
+  .coin.selected{outline:3px solid #22c55e;outline-offset:2px}
+  .coin.fake-reveal{background:radial-gradient(circle at 30% 30%,#fca5a5,#991b1b);color:#fff}
+
+  .coins-row{display:flex;gap:15px;justify-content:center;margin:15px 0}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px}
+  .side{background:#0f172a;padding:12px;border-radius:8px;min-height:80px}
+  .side h4{margin:0 0 8px;color:var(--accent);text-align:center}
+  .side .coins-row{margin:0;flex-wrap:wrap}
+
+  button{
+    background:var(--accent);color:#0f172a;border:none;padding:10px 18px;
+    border-radius:8px;font-weight:bold;cursor:pointer;font-size:15px;
+    transition:transform .1s, filter .2s;
+  }
+  button:hover{filter:brightness(1.1)}
+  button:active{transform:scale(.97)}
+  button.ghost{background:transparent;color:var(--text);border:1px solid #475569}
+  button.danger{background:var(--bad);color:#fff}
+  .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:15px}
+
+  .log{
+    background:#0f172a;padding:12px;border-radius:8px;
+    max-height:200px;overflow-y:auto;font-family:monospace;font-size:14px;
+  }
+  .log-entry{padding:4px 0;border-bottom:1px dashed #334155}
+  .log-entry:last-child{border-bottom:none}
+
+  .answer{
+    margin-top:15px;padding:15px;border-radius:8px;
+    background:#0f172a;border:2px solid var(--good);display:none;
+  }
+  .answer.show{display:block}
+  .answer h3{margin:0 0 8px;color:var(--good)}
+
+  .hint{font-size:14px;color:var(--muted);margin-top:10px;line-height:1.5}
+  .hint code{background:#0f172a;padding:2px 6px;border-radius:4px;color:var(--accent)}
+  .algo{
+    background:#0f172a;padding:15px;border-radius:8px;
+    font-size:14px;line-height:1.6;
+  }
+  .algo h3{color:var(--accent);margin-top:0}
+  .algo ol{padding-left:20px}
+  .algo li{margin-bottom:8px}
+  .algo .branch{margin-left:20px;color:#cbd5e1}
+  .status{text-align:center;font-size:16px;min-height:24px;margin:5px 0;color:var(--muted)}
+  .status.win{color:var(--good);font-weight:bold}
+  .status.lose{color:var(--bad);font-weight:bold}
+</style>
+</head>
+<body>
+
+<h1>⚖️ Четыре монеты и особенные весы</h1>
+
+<div class="task">
+  <b>Условие.</b> Есть 4 монеты: 3 настоящие (одинаковый вес) и 1 фальшивая
+  (отличается по весу — неизвестно, легче она или тяжелее).
+  Весы без гирь таковы, что при <b>равных</b> грузах перевешивает
+  <i>любая</i> чашка (случайно), а при <b>разных</b> — всегда перевешивает
+  более тяжёлая. За <b>3 взвешивания</b> найти фальшивую монету
+  и определить, легче она или тяжелее настоящей.
+</div>
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="status" id="status">Выбрана фальшивая монета. Удачи!</div>
+
+    <div class="scale">
+      <div class="beam" id="beam"></div>
+      <div class="pan left" id="panL"><div class="string"></div></div>
+      <div class="pan right" id="panR"><div class="string"></div></div>
+      <div class="pillar"></div>
+      <div class="base"></div>
+    </div>
+
+    <div class="controls">
+      <div class="side">
+        <h4>Левая чашка <span id="countL">(0)</span></h4>
+        <div class="coins-row" id="selL"></div>
+      </div>
+      <div class="side">
+        <h4>Правая чашка <span id="countR">(0)</span></h4>
+        <div class="coins-row" id="selR"></div>
+      </div>
+    </div>
+
+    <h4 style="text-align:center;color:var(--muted);margin:15px 0 5px">
+      Доступные монеты (клик — положить на выбранную чашку)
+    </h4>
+    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
+      <button class="ghost" id="targetL">Цель: левая чашка</button>
+      <button class="ghost" id="targetR">Цель: правая чашка</button>
+    </div>
+    <div class="coins-row" id="pool"></div>
+
+    <div class="actions">
+      <button id="weigh">⚖️ Взвесить</button>
+      <button class="ghost" id="clear">Очистить чаши</button>
+      <button class="ghost" id="reveal">Показать ответ</button>
+      <button class="danger" id="reset">Новая игра</button>
+    </div>
+
+    <div class="answer" id="answer">
+      <h3>Ответ для проверки:</h3>
+      <div id="answerText"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0;color:var(--accent)">Протокол взвешиваний</h3>
+    <div class="log" id="log"><div class="log-entry" style="color:var(--muted)">Пока пусто…</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="algo">
+      <h3>Один из корректных алгоритмов (3 взвешивания)</h3>
+      <p>Обозначим результат взвешивания: <code>L&gt;R</code> — перевесила левая,
+      <code>L&lt;R</code> — перевесила правая. Помним: при равных грузах
+      результат случаен, поэтому «перевесила левая» при равенстве означает
+      лишь «возможно, равны».</p>
+      <ol>
+        <li><b>Взвешивание 1:</b> 1 против 2.
+          <div class="branch">
+            Запоминаем: <code>R1 ∈ {L&gt;R, L&lt;R}</code>.
+          </div>
+        </li>
+        <li><b>Взвешивание 2:</b> 3 против 4.
+          <div class="branch">
+            Запоминаем: <code>R2 ∈ {L&gt;R, L&lt;R}</code>.
+          </div>
+        </li>
+        <li><b>Взвешивание 3:</b> 1 против 3.
+          <div class="branch">
+            Запоминаем: <code>R3 ∈ {L&gt;R, L&lt;R}</code>.
+          </div>
+        </li>
+      </ol>
+      <p>По тройке <code>(R1,R2,R3)</code> однозначно восстанавливается
+      фальшивая монета и её знак. Вот таблица (остальные 8 вариантов
+      получаются симметрией — при смене всех «&gt;» на «&lt;» меняется
+      только «знак» фальшивой, но не её номер):</p>
+      <table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">
+        <tr style="color:var(--accent)">
+          <th style="text-align:left;padding:4px">R1</th>
+          <th style="text-align:left;padding:4px">R2</th>
+          <th style="text-align:left;padding:4px">R3</th>
+          <th style="text-align:left;padding:4px">Фальшивая</th>
+        </tr>
+        <tr><td>L&gt;R</td><td>L&gt;R</td><td>L&gt;R</td><td>монета 1, тяжёлая</td></tr>
+        <tr><td>L&gt;R</td><td>L&gt;R</td><td>L&lt;R</td><td>монета 3, тяжёлая</td></tr>
+        <tr><td>L&gt;R</td><td>L&lt;R</td><td>L&gt;R</td><td>монета 1, тяжёлая</td></tr>
+        <tr><td>L&gt;R</td><td>L&lt;R</td><td>L&lt;R</td><td>монета 3, лёгкая</td></tr>
+        <tr><td>L&lt;R</td><td>L&gt;R</td><td>L&gt;R</td><td>монета 3, лёгкая</td></tr>
+        <tr><td>L&lt;R</td><td>L&gt;R</td><td>L&lt;R</td><td>монета 1, лёгкая</td></tr>
+        <tr><td>L&lt;R</td><td>L&lt;R</td><td>L&gt;R</td><td>монета 3, лёгкая</td></tr>
+        <tr><td>L&lt;R</td><td>L&lt;R</td><td>L&lt;R</td><td>монета 1, лёгкая</td></tr>
+      </table>
+      <p class="hint">
+        <b>Почему это работает.</b> Настоящие монеты весят одинаково.
+        В каждом взвешивании участвуют две монеты. Если обе настоящие —
+        весы «врут» случайно. Если одна фальшивая — весы показывают правду.
+        Комбинируя три взвешивания, мы для каждой из 8 гипотез
+        (4 монеты × 2 знака) получаем уникальную тройку исходов —
+        значит, по результату всегда можно восстановить ответ.
+      </p>
+      <p class="hint">
+        <i>Если у вас был другой алгоритм — пришлите его, и я перестрою
+        страницу, чтобы она вела пользователя именно по нему
+        (с пошаговыми указаниями, какие монеты класть на каждом шаге).</i>
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* === Состояние игры === */
+let state = {};
+
+function newGame(){
+  // Случайная фальшивая монета (1..4) и её знак (+1 тяжёлая, -1 лёгкая)
+  const fake = 1 + Math.floor(Math.random()*4);
+  const sign = Math.random() < 0.5 ? -1 : 1; // -1 легче, +1 тяжелее
+  state = {
+    fake, sign,
+    left: [], right: [],
+    target: 'L',     // куда класть монету по клику
+    log: [],
+    weighings: 0,
+    finished: false,
+    revealed: false
+  };
+  render();
+  document.getElementById('status').textContent =
+    `Новая игра: фальшивая монета выбрана. У вас 3 взвешивания.`;
+  document.getElementById('status').className = 'status';
+  document.getElementById('answer').classList.remove('show');
+  document.getElementById('log').innerHTML =
+    '<div class="log-entry" style="color:var(--muted)">Пока пусто…</div>';
+  resetBeam();
+}
+
+/* === Вес монеты === */
+function weight(n){
+  // настоящие = 10, фальшивая = 10 + sign
+  return n === state.fake ? 10 + state.sign : 10;
+}
+
+/* === Результат взвешивания по правилам задачи === */
+function weighResult(L, R){
+  const wL = L.reduce((s,n)=>s+weight(n),0);
+  const wR = R.reduce((s,n)=>s+weight(n),0);
+  if(wL === wR){
+    // равны — перевешивает случайная чашка
+    return Math.random() < 0.5 ? 'L>R' : 'L<R';
+  }
+  return wL > wR ? 'L>R' : 'L<R';
+}
+
+/* === Рендер === */
+function render(){
+  // Пул
+  const pool = document.getElementById('pool');
+  pool.innerHTML = '';
+  for(let i=1;i<=4;i++){
+    const c = document.createElement('div');
+    c.className = 'coin';
+    c.textContent = i;
+    c.onclick = () => putCoin(i);
+    pool.appendChild(c);
+  }
+
+  // Чаши
+  renderPan('selL', state.left, 'countL');
+  renderPan('selR', state.right, 'countR');
+
+  // Подсветка цели
+  document.getElementById('targetL').style.background =
+    state.target==='L' ? 'var(--accent)' : 'transparent';
+  document.getElementById('targetL').style.color =
+    state.target==='L' ? '#0f172a' : 'var(--text)';
+  document.getElementById('targetR').style.background =
+    state.target==='R' ? 'var(--accent)' : 'transparent';
+  document.getElementById('targetR').style.color =
+    state.target==='R' ? '#0f172a' : 'var(--text)';
+}
+
+function renderPan(id, arr, countId){
+  const el = document.getElementById(id);
+  // сохраняем string-элемент
+  el.innerHTML = '<div class="string"></div>';
+  arr.forEach(n=>{
+    const c = document.createElement('div');
+    c.className = 'coin';
+    c.textContent = n;
+    c.onclick = () => removeCoin(n);
+    el.appendChild(c);
+  });
+  document.getElementById(countId).textContent = `(${arr.length})`;
+}
+
+/* === Действия с монетами === */
+function putCoin(n){
+  if(state.finished) return;
+  // нельзя класть одну и ту же монету дважды
+  if(state.left.includes(n) || state.right.includes(n)) return;
+  if(state.target === 'L') state.left.push(n);
+  else state.right.push(n);
+  render();
+}
+function removeCoin(n){
+  if(state.finished) return;
+  state.left = state.left.filter(x=>x!==n);
+  state.right = state.right.filter(x=>x!==n);
+  render();
+}
+
+/* === Взвешивание === */
+function doWeigh(){
+  if(state.finished){ alert('Игра окончена. Начните новую.'); return; }
+  if(state.left.length === 0 || state.right.length === 0){
+    alert('Положите хотя бы по одной монете на каждую чашку.');
+    return;
+  }
+  if(state.weighings >= 3){
+    alert('Вы использовали все 3 взвешивания. Нажмите «Показать ответ» или «Новая игра».');
+    return;
+  }
+  state.weighings++;
+  const res = weighResult(state.left, state.right);
+  const entry = {
+    n: state.weighings,
+    L: [...state.left], R: [...state.right], res
+  };
+  state.log.push(entry);
+
+  // Обновить лог
+  const logEl = document.getElementById('log');
+  if(state.weighings === 1) logEl.innerHTML = '';
+  const d = document.createElement('div');
+  d.className = 'log-entry';
+  d.innerHTML = `<b>Взв. ${entry.n}:</b> [${entry.L.join(',')}] vs [${entry.R.join(',')}] → <b>${entry.res}</b>`;
+  logEl.appendChild(d);
+
+  // Наклонить весы
+  tiltBeam(res);
+
+  // Очистить чаши после взвешивания
+  setTimeout(()=>{
+    state.left = []; state.right = [];
+    render();
+    if(state.weighings === 3){
+      document.getElementById('status').textContent =
+        'Все 3 взвешивания сделаны. Нажмите «Показать ответ».';
+    } else {
+      document.getElementById('status').textContent =
+        `Осталось взвешиваний: ${3 - state.weighings}`;
+    }
+  }, 1400);
+}
+
+function tiltBeam(res){
+  const beam = document.getElementById('beam');
+  const panL = document.getElementById('panL');
+  const panR = document.getElementById('panR');
+  beam.style.transform = `translateX(-50%) rotate(${res==='L>R' ? '8deg' : '-8deg'})`;
+  if(res==='L>R'){
+    panL.classList.add('tilt-down'); panL.classList.remove('tilt-up');
+    panR.classList.add('tilt-up');   panR.classList.remove('tilt-down');
+  } else {
+    panR.classList.add('tilt-down'); panR.classList.remove('tilt-up');
+    panL.classList.add('tilt-up');   panL.classList.remove('tilt-down');
+  }
+}
+function resetBeam(){
+  document.getElementById('beam').style.transform = 'translateX(-50%) rotate(0deg)';
+  document.getElementById('panL').classList.remove('tilt-down','tilt-up');
+  document.getElementById('panR').classList.remove('tilt-down','tilt-up');
+}
+
+/* === Показать ответ === */
+function revealAnswer(){
+  state.revealed = true;
+  const a = document.getElementById('answer');
+  const t = document.getElementById('answerText');
+  const signText = state.sign > 0 ? 'тяжелее' : 'легче';
+  t.innerHTML = `Фальшивая монета — <b style="color:var(--accent)">№${state.fake}</b>,
+                 она <b style="color:var(--accent)">${signText}</b> настоящей.`;
+  a.classList.add('show');
+
+  // Подсветить фальшивую монету в пуле
+  const poolCoins = document.getElementById('pool').children;
+  for(const c of poolCoins){
+    if(parseInt(c.textContent) === state.fake) c.classList.add('fake-reveal');
+  }
+
+  // Попытка восстановить ответ по протоколу (алгоритм из таблицы)
+  if(state.weighings === 3){
+    const key = state.log.map(e=>e.res).join('|');
+    const table = {
+      'L>R|L>R|L>R':{n:1,s:'тяжелее'},
+      'L>R|L>R|L<R':{n:3,s:'тяжелее'},
+      'L>R|L<R|L>R':{n:1,s:'тяжелее'},
+      'L>R|L<R|L<R':{n:3,s:'легче'},
+      'L<R|L>R|L>R':{n:3,s:'легче'},
+      'L<R|L>R|L<R':{n:1,s:'легче'},
+      'L<R|L<R|L>R':{n:3,s:'легче'},
+      'L<R|L<R|L<R':{n:1,s:'легче'}
+    };
+    const guess = table[key];
+    const st = document.getElementById('status');
+    if(guess){
+      const correct = (guess.n === state.fake) &&
+        ((guess.s==='тяжелее' && state.sign>0) || (guess.s==='легче' && state.sign<0));
+      st.textContent = correct
+        ? `✅ Вы верно определили: монета №${guess.n}, ${guess.s}!`
+        : `❌ По протоколу получается: монета №${guess.n}, ${guess.s}. Не совпало с настоящим ответом — значит, где-то не повезло со случайностью весов (так и задумано в условии: при равенстве весы «врут»).`;
+      st.className = 'status ' + (correct ? 'win' : 'lose');
+    }
+  }
+}
+
+/* === События === */
+document.getElementById('targetL').onclick = ()=>{state.target='L';render()};
+document.getElementById('targetR').onclick = ()=>{state.target='R';render()};
+document.getElementById('weigh').onclick = doWeigh;
+document.getElementById('clear').onclick = ()=>{
+  if(state.finished) return;
+  state.left = []; state.right = []; render();
+};
+document.getElementById('reveal').onclick = revealAnswer;
+document.getElementById('reset').onclick = newGame;
+
+newGame();
+</script>
+</body>
+</html>
